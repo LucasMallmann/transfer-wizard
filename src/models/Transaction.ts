@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import Category from './Category';
+import ColumnNumericTransformer from '../utils/ColumnNumericTransformer';
 
 @Entity('transactions')
 class Transaction {
@@ -20,7 +21,9 @@ class Transaction {
   @Column()
   type: 'income' | 'outcome';
 
-  @Column()
+  @Column('numeric', {
+    transformer: new ColumnNumericTransformer(),
+  })
   value: number;
 
   @ManyToOne(() => Category)
