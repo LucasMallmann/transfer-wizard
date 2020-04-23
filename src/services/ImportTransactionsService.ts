@@ -16,7 +16,7 @@ interface Request {
 interface CsvTransaction {
   title: string;
   value: number;
-  type: string;
+  type: 'income' | 'outcome';
   category: string;
 }
 
@@ -42,7 +42,7 @@ class ImportTransactionsService {
         cell.trim(),
       );
 
-      if (!title || !type || !value) {
+      if (!title || !type || !value || !category) {
         return;
       }
 
@@ -54,43 +54,43 @@ class ImportTransactionsService {
     await new Promise(resolve => parsedCSV.on('end', resolve));
 
     const existingCategories = await categoriesRepository.find({
-      where: {
-        title: In(categories),
-      },
+      where: { title: In(categories) },
     });
 
-    const existingCategoryTitles = existingCategories.map(
-      category => category.title,
+    const existingCategoriesTitles = existingCategories.map(
+      (category: Category) => category.title,
     );
 
     const addCategoryTitles = categories
-      .filter(category => !existingCategoryTitles.includes(category))
+      .filter(category => !existingCategoriesTitles.includes(category))
       .filter((item, index) => categories.indexOf(item) === index);
 
     const newCategories = categoriesRepository.create(
-      addCategoryTitles.map(title => ({ title })),
+      addCategoryTitles.map(title => ({
+        title,
+      })),
     );
 
     await categoriesRepository.save(newCategories);
 
     const finalCategories = [...newCategories, ...existingCategories];
 
-    const t: Transaction[] = transactions.map(transaction => {
-      return {
+    const createTransactions = transactionsRepository.create(
+      transactions.map(transaction => ({
         title: transaction.title,
         type: transaction.type,
         value: transaction.value,
-        category: finalCategories.find(cat => cat.title === transaction.title),
-      };
-    });
+        category: finalCategories.find(
+          category => category.title === transaction.category,
+        ),
+      })),
+    );
 
-    const newTransactions = transactionsRepository.create(t);
-
-    await transactionsRepository.save(newTransactions);
+    await transactionsRepository.save(createTransactions);
 
     await fs.promises.unlink(csvPath);
 
-    return newTransactions;
+    return createTransactions;
   }
 }
 
