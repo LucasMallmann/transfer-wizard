@@ -28,24 +28,21 @@ class CreateTransactionService {
       throw new AppError('You do not have enough money bro');
     }
 
+    let transactionCategory = await categoriesRepository.findOne({
+      where: { title: category },
+    });
+
+    if (!transactionCategory) {
+      transactionCategory = categoriesRepository.create({ title: category });
+      await categoriesRepository.save(transactionCategory);
+    }
+
     const transaction = transactionsRepository.create({
       title,
       value,
       type,
+      category: transactionCategory,
     });
-
-    const foundCategory = await categoriesRepository.findOne({
-      where: { title: category },
-    });
-
-    if (!foundCategory) {
-      const newCategory = categoriesRepository.create({ title: category });
-      await categoriesRepository.save(newCategory);
-
-      transaction.category_id = newCategory.id;
-    } else {
-      transaction.category_id = foundCategory.id;
-    }
 
     await transactionsRepository.save(transaction);
     return transaction;
